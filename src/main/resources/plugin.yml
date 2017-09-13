@@ -1,0 +1,8 @@
+name: i5variable
+main: com.i5mc.variable.Main
+version: ${project.version}
+author: i5mc
+
+depend:
+- SimpleORM
+- PlaceholderAPI
