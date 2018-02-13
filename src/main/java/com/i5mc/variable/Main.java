@@ -2,7 +2,11 @@ package com.i5mc.variable;
 
 import com.avaje.ebean.EbeanServer;
 import com.google.common.collect.ImmutableMap;
+import com.i5mc.variable.level.Level;
+import com.i5mc.variable.level.LevelUp;
+import com.i5mc.variable.level.LevelVar;
 import com.mengcraft.simpleorm.EbeanManager;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.bukkit.Bukkit;
@@ -18,8 +22,11 @@ import static java.util.concurrent.CompletableFuture.runAsync;
  */
 public class Main extends JavaPlugin implements Listener {
 
-    private EbeanServer pool;
+    private EbeanServer dataSource;
     private VarExec exec;
+    private LevelVar level;
+    @Getter
+    private static Messenger messenger;
 
     @Override
     @SneakyThrows
@@ -30,12 +37,16 @@ public class Main extends JavaPlugin implements Listener {
         if (d.isNotInitialized()) {
             d.define(Variable.class);
             d.define(Stat.class);
+            d.define(Level.class);
+            d.define(LevelUp.class);
             d.initialize();
         }
         d.install();
-        pool = d.getServer();
+        dataSource = d.getServer();
 
-        L2Pool.INST.init(pool);
+        messenger = new Messenger(this);
+
+        L2Pool.INSTANCE.init(dataSource);
 
         new StatExec(this).hook();
         new VarLocalExec(this).hook();
@@ -43,7 +54,11 @@ public class Main extends JavaPlugin implements Listener {
         exec = new VarExec(this);
         exec.hook();
 
+        level = new LevelVar(this);
+        level.hook();
+
         PluginHelper.addExecutor(this, new StatCommand());
+        PluginHelper.addExecutor(this, "i5level", level);
 
         Bukkit.getPluginManager().registerEvents(this, this);
 
@@ -52,7 +67,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public void update() {
-        val l = pool.find(Variable.class).findList();
+        val l = dataSource.find(Variable.class).findList();
         ImmutableMap.Builder<String, Variable> b = ImmutableMap.builder();
         for (val variable : l) {
             b.put(variable.getName(), variable);
@@ -63,7 +78,7 @@ public class Main extends JavaPlugin implements Listener {
 
     @EventHandler
     public void handle(PlayerQuitEvent event) {
-        L2Pool.INST.quit(event.getPlayer());
+        L2Pool.INSTANCE.quit(event.getPlayer());
     }
 
 }

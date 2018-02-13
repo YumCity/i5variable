@@ -49,7 +49,7 @@ public class StatCommand extends Command {
             if (who == null) {
                 p.sendMessage(ChatColor.RED + "玩家不在线");
             } else {
-                val load = L2Pool.INST.load(who).get();
+                val load = L2Pool.INSTANCE.load(who).get();
                 val key = itr.next().toUpperCase();
                 var value = (Integer) load.object.get(key);
                 int add = Integer.parseInt(itr.next());
@@ -59,7 +59,7 @@ public class StatCommand extends Command {
                     value = add + value;
                 }
                 load.object.put(key, value);
-                L2Pool.INST.save(load);
+                L2Pool.INSTANCE.save(load);
                 p.sendMessage(ChatColor.GREEN + "Okay");
             }
             return null;
@@ -71,9 +71,9 @@ public class StatCommand extends Command {
             if (who == null) {
                 p.sendMessage(ChatColor.RED + "玩家不在线");
             } else {
-                val load = L2Pool.INST.load(who).get();
+                val load = L2Pool.INSTANCE.load(who).get();
                 load.object.put(itr.next().toUpperCase(), Integer.valueOf(itr.next()));
-                L2Pool.INST.save(load);
+                L2Pool.INSTANCE.save(load);
                 p.sendMessage(ChatColor.GREEN + "Okay");
             }
             return null;

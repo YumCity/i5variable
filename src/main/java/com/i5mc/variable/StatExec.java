@@ -31,7 +31,7 @@ public class StatExec extends EZPlaceholderHook {
 
         @SneakyThrows
         public static String myFunc(CommandSender p, Iterator<String> input) {
-            val load = L2Pool.INST.load(((Player) p)).get().object.get(input.next().toUpperCase());
+            val load = L2Pool.INSTANCE.load(((Player) p)).get().object.get(input.next().toUpperCase());
             if (load == null) return "-1";
             return String.valueOf(load);
         }

@@ -1,33 +1,56 @@
 package com.i5mc.variable;
 
 import com.avaje.ebean.EbeanServer;
+import com.avaje.ebean.Update;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.i5mc.variable.level.Level;
+import com.i5mc.variable.level.LevelUp;
+import lombok.SneakyThrows;
 import lombok.experimental.var;
 import lombok.val;
 import org.bukkit.entity.Player;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
  * Created by on 2017/9/12.
  */
 public enum L2Pool {
 
-    INST;
+    INSTANCE;
 
-    final Map<UUID, CompletableFuture<Stat>> mapping = new HashMap<>();
+    private final Cache<String, Object> pool = CacheBuilder.newBuilder().build();
+    private final Object invalid = new Object();
     private EbeanServer db;
 
     public void init(EbeanServer db) {
         this.db = db;
     }
 
+    public Level level(Player p) {
+        UUID id = p.getUniqueId();
+        return fetch(id + ":level", () -> {
+            Level level = db.find(Level.class, id);
+            if (level == null) {
+                level = db.createEntityBean(Level.class);
+                level.setId(id);
+                level.setName(p.getName());
+            }
+            return level;
+        });
+    }
+
+    @SneakyThrows
     public CompletableFuture<Stat> load(Player p) {
-        return INST.mapping.computeIfAbsent(p.getUniqueId(), id -> CompletableFuture.supplyAsync(() -> {
+        UUID id = p.getUniqueId();
+        return fetch(id + ":stat", () -> CompletableFuture.supplyAsync(() -> {
             var find = db.find(Stat.class, id);
             if (find == null) {
                 find = db.createEntityBean(Stat.class);
@@ -46,13 +69,43 @@ public enum L2Pool {
         }));
     }
 
-    public CompletableFuture<Void> save(Stat any) {
+    public void save(Stat any) {
         any.setData(any.object.toJSONString());
-        return CompletableFuture.runAsync(() -> db.save(any));
+        runAsync(() -> db.save(any));
+    }
+
+    @SneakyThrows
+    public <T> T fetch(String key, Supplier<T> supplier) {
+        val output = INSTANCE.pool.get(key, () -> {
+            T value = supplier.get();
+            if (value == null) {
+                return invalid;
+            }
+            return value;
+        });
+        return output == invalid ? null : (T) output;
     }
 
     public void quit(Player p) {
-        INST.mapping.remove(p.getUniqueId());
+        String namespace = p.getUniqueId() + ":";
+        pool.asMap().keySet().removeIf(key -> key.startsWith(namespace));
     }
 
+    public int nextLevel(Level level) {
+        return fetch("level_xp:" + level.getLevel(), () -> {
+            LevelUp up = db.find(LevelUp.class, level.getLevel());
+            return up == null ? Integer.MAX_VALUE : up.getXp();
+        });
+    }
+
+    public void save(Level level) {
+        Update<Level> sql = db.createUpdate(Level.class, "update i5level set level = :level, xp = :xp, xp_total = :xp_total where id = :id")
+                .set("id", level.getId())
+                .set("level", level.getLevel())
+                .set("xp", level.getXp())
+                .set("xp_total", level.getXpTotal())
+                ;
+
+        if (!(sql.execute() == 1)) db.insert(level);
+    }
 }
