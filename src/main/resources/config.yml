@@ -1,2 +1,5 @@
 update: 12000
 local: ~
+level:
+  auto_level_up: false
+  inject_xp_bar: false

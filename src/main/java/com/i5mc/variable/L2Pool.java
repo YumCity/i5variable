@@ -4,7 +4,7 @@ import com.avaje.ebean.EbeanServer;
 import com.avaje.ebean.Update;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.i5mc.variable.level.Level;
+import com.i5mc.variable.level.I5Level;
 import com.i5mc.variable.level.LevelUp;
 import lombok.SneakyThrows;
 import lombok.experimental.var;
@@ -16,8 +16,6 @@ import org.json.simple.JSONValue;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-
-import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
  * Created by on 2017/9/12.
@@ -34,12 +32,12 @@ public enum L2Pool {
         this.db = db;
     }
 
-    public Level level(Player p) {
+    public I5Level level(Player p) {
         UUID id = p.getUniqueId();
         return fetch(id + ":level", () -> {
-            Level level = db.find(Level.class, id);
+            I5Level level = db.find(I5Level.class, id);
             if (level == null) {
-                level = db.createEntityBean(Level.class);
+                level = db.createEntityBean(I5Level.class);
                 level.setId(id);
                 level.setName(p.getName());
             }
@@ -71,7 +69,7 @@ public enum L2Pool {
 
     public void save(Stat any) {
         any.setData(any.object.toJSONString());
-        runAsync(() -> db.save(any));
+        Main.runAsync(() -> db.save(any));
     }
 
     @SneakyThrows
@@ -91,21 +89,22 @@ public enum L2Pool {
         pool.asMap().keySet().removeIf(key -> key.startsWith(namespace));
     }
 
-    public int nextLevel(Level level) {
+    public int nextLevel(I5Level level) {
         return fetch("level_xp:" + level.getLevel(), () -> {
             LevelUp up = db.find(LevelUp.class, level.getLevel());
             return up == null ? Integer.MAX_VALUE : up.getXp();
         });
     }
 
-    public void save(Level level) {
-        Update<Level> sql = db.createUpdate(Level.class, "update i5level set level = :level, xp = :xp, xp_total = :xp_total where id = :id")
-                .set("id", level.getId())
-                .set("level", level.getLevel())
-                .set("xp", level.getXp())
-                .set("xp_total", level.getXpTotal())
-                ;
+    public void save(I5Level level) {// This func run async
+        Main.runAsync(() -> {
+            Update<I5Level> sql = db.createUpdate(I5Level.class, "update i5level set level = :level, xp = :xp, xp_total = :xp_total where id = :id")
+                    .set("id", level.getId())
+                    .set("level", level.getLevel())
+                    .set("xp", level.getXp())
+                    .set("xp_total", level.getXpTotal());
 
-        if (!(sql.execute() == 1)) db.insert(level);
+            if (!(sql.execute() == 1)) db.insert(level);
+        });
     }
 }

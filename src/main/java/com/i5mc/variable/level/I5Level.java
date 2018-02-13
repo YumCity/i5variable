@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "i5level")
 @Data
 @EqualsAndHashCode(of = "id")
-public class Level {
+public class I5Level {
 
     @Id
     private UUID id;
